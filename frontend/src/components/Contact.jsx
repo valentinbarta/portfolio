@@ -1,46 +1,49 @@
-import { useState } from 'react'
-import { useScrollAnimation } from '../hooks/useScrollAnimation'
-import { motion } from 'framer-motion'
-import { Mail, MapPin, Phone } from 'lucide-react'
-import axios from 'axios'
+import { useState } from "react";
+import { useScrollAnimation } from "../hooks/useScrollAnimation";
+import { motion } from "framer-motion";
+import { Mail, MapPin, Phone } from "lucide-react";
+import axios from "axios";
+import API_URL from "../config/api";
 
 export const Contact = () => {
-  const ref = useScrollAnimation()
+  const ref = useScrollAnimation();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  })
-  const [status, setStatus] = useState('')
-  const [loading, setLoading] = useState(false)
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setStatus('sending')
+    e.preventDefault();
+    setLoading(true);
+    setStatus("sending");
 
     try {
-      await axios.post('/api/contact', formData)
-      setStatus('success')
-      setFormData({ name: '', email: '', subject: '', message: '' })
-      setTimeout(() => setStatus(''), 3000)
+      await axios.post(`${API_URL}/api/contact`, formData);
+      setStatus("success");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+      setTimeout(() => setStatus(""), 3000);
     } catch (error) {
-      setStatus('error')
-      setTimeout(() => setStatus(''), 3000)
+      setStatus("error");
+      setTimeout(() => setStatus(""), 3000);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <section id="contact" className="relative py-20" ref={ref}>
       <div className="max-w-4xl mx-auto px-4">
-        <h2 className="text-5xl font-bold text-center mb-16 gradient-text">Get In Touch</h2>
+        <h2 className="text-5xl font-bold text-center mb-16 gradient-text">
+          Get In Touch
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Contact Info */}
@@ -55,7 +58,10 @@ export const Contact = () => {
                 <Mail className="text-neon-purple mt-1" size={24} />
                 <div>
                   <h4 className="font-bold mb-1">Email</h4>
-                  <a href="mailto:your.email@example.com" className="text-gray-400 hover:text-neon-purple">
+                  <a
+                    href="mailto:your.email@example.com"
+                    className="text-gray-400 hover:text-neon-purple"
+                  >
                     your.email@example.com
                   </a>
                 </div>
@@ -64,7 +70,10 @@ export const Contact = () => {
                 <Phone className="text-neon-purple mt-1" size={24} />
                 <div>
                   <h4 className="font-bold mb-1">Phone</h4>
-                  <a href="tel:+1234567890" className="text-gray-400 hover:text-neon-purple">
+                  <a
+                    href="tel:+1234567890"
+                    className="text-gray-400 hover:text-neon-purple"
+                  >
                     +1 (234) 567-890
                   </a>
                 </div>
@@ -136,18 +145,22 @@ export const Contact = () => {
               disabled={loading}
               className="w-full btn-primary py-3 font-bold disabled:opacity-50"
             >
-              {loading ? 'Sending...' : 'Send Message'}
+              {loading ? "Sending..." : "Send Message"}
             </button>
 
-            {status === 'success' && (
-              <p className="text-green-400 text-center">Message sent successfully!</p>
+            {status === "success" && (
+              <p className="text-green-400 text-center">
+                Message sent successfully!
+              </p>
             )}
-            {status === 'error' && (
-              <p className="text-red-400 text-center">Failed to send message. Try again!</p>
+            {status === "error" && (
+              <p className="text-red-400 text-center">
+                Failed to send message. Try again!
+              </p>
             )}
           </motion.form>
         </div>
       </div>
     </section>
-  )
-}
+  );
+};
