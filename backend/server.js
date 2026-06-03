@@ -12,10 +12,15 @@ console.log('Google AI API:', process.env.GOOGLE_API_KEY ? 'âœ“ Configured' : 'â
 const app = express()
 const PORT = process.env.PORT || 5000
 
+app.use((req, res, next) => {
+  console.log('Origin:', req.headers.origin)
+  next()
+})
+
 // Middleware
 app.use(express.json())
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://portfolio-valentinb.vercel.app/',
+  origin: process.env.FRONTEND_URL || 'https://portfolio-valentinb.vercel.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
