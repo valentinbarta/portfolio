@@ -41,7 +41,7 @@ export const ChatPage = () => {
     setLoading(true)
 
     try {
-      const response = await axios.post('/api/chat', {
+      const response = await axios.post('https://portfolio-valentinb.vercel.app/api/chat', {
         message: currentMessage,
         conversationHistory: messages
       })
