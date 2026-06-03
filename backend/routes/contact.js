@@ -1,9 +1,9 @@
 import express from 'express'
 import nodemailer from 'nodemailer'
+import Contact from '../models/Contact.js'
 
 const router = express.Router()
 
-// Mock email transporter - configure with your email service
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -20,11 +20,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
-    // For demo purposes, just log and respond
-    // In production, actually send email using transporter
-    console.log('Contact form submission:', { name, email, subject, message })
+    // Save to MongoDB
+    const contact = new Contact({ name, email, subject, message })
+    await contact.save()
+    console.log('Contact saved to DB:', contact._id)
 
-    // Optional: Send confirmation email
+    // Send confirmation email
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,

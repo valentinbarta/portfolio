@@ -4,8 +4,10 @@ import dotenv from 'dotenv'
 import { apiKeyMiddleware, errorHandler } from './middleware/auth.js'
 import contactRoutes from './routes/contact.js'
 import chatRoutes from './routes/chat.js'
+import connectDB from './config/db.js'
 
 dotenv.config()
+connectDB()
 console.log(process.cwd())
 console.log('Google AI API:', process.env.GOOGLE_API_KEY ? '✓ Configured' : '✗ Missing')
 
