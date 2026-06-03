@@ -1,5 +1,5 @@
 import express from 'express'
-import { genAI } from '../config/openai.js'
+import { groq } from '../config/openai.js'
 
 const router = express.Router()
 
@@ -17,13 +17,11 @@ Rules:
 - Do NOT invent skills, projects, or experience
 - If you don't know something, say so honestly
 - Keep responses short and useful unless asked for detail
-`
 
-const portfolioContext = `
 Valentin's Portfolio Context:
 - Frontend: React, Vite, Tailwind CSS
 - Backend: Node.js, Express
-- AI Integration: Gemini API chatbot
+- AI Integration: Groq API chatbot
 - Projects: AI Portfolio Chatbot, Developer Portfolio Website
 `
 
@@ -35,45 +33,29 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' })
     }
 
-    if (!process.env.GOOGLE_API_KEY) {
-      return res.status(500).json({ error: 'Google AI API key not configured' })
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: 'Groq API key not configured' })
     }
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash'
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory
+        .filter(msg => msg && msg.text && msg.sender)
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        })),
+      { role: 'user', content: message }
+    ]
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages,
+      max_tokens: 1500,
+      temperature: 0.7
     })
 
-    // Clean conversation history
-    let history = conversationHistory
-      .filter(msg => msg && msg.text && msg.sender)
-      .map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }]
-      }))
-
-    // Remove invalid starting role (must start user/model properly alternating)
-    if (history.length > 0 && history[0].role === 'model') {
-      history = history.slice(1)
-    }
-
-const chat = model.startChat({
-  history,
-  systemInstruction: {
-    role: 'user',
-    parts: [
-      {
-        text: `${systemPrompt}\n\n${portfolioContext}`
-      }
-    ]
-  },
-  generationConfig: {
-    maxOutputTokens: 1500,
-    temperature: 0.7
-  }
-})
-
-    const response = await chat.sendMessage(message)
-    const reply = response.response.text()
+    const reply = response.choices[0].message.content
 
     res.json({ reply, success: true })
   } catch (error) {
