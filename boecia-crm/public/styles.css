@@ -179,3 +179,36 @@
     padding: 8px 8px 8px 14px; display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px);
   }
   #account { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- just arrived ---------- */
+  .arrivals {
+    background: var(--honey-soft); border: 1px solid var(--honey); border-radius: var(--radius);
+    padding: 10px 12px 12px; margin-bottom: 14px;
+  }
+  .arrivals-head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 2px; }
+  .arrivals-head h2 { margin: 0; font-size: 14px; color: var(--honey-text); display: flex; align-items: center; gap: 6px; }
+  .arrivals-head .n { background: var(--honey); color: #1f1600; border-radius: 999px; padding: 0 8px; font-size: 12px; }
+  .arrivals-head .hint { color: var(--muted); font-size: 12px; flex: 1; min-width: 180px; }
+  /* top padding leaves room for the slide-in animation inside the scroll area */
+  .arrivals-cards { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 4px; }
+  .arrivals-cards .card { flex: 0 0 250px; }
+  .card.fresh { border-color: var(--honey); }
+  .card .received { font-size: 12px; color: var(--honey-text); margin-top: 6px; }
+  .seen-btn {
+    border: 1px solid var(--honey); background: var(--surface); color: var(--honey-text); border-radius: 6px;
+    font-size: 12px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+  }
+  .seen-btn:hover { background: var(--honey); color: #1f1600; }
+  .card.arrived { animation: arrive 1.8s ease-out; }
+  @keyframes arrive {
+    0% { transform: translateY(-8px); box-shadow: 0 0 0 4px var(--honey); }
+    100% { transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .card.arrived { animation: none; } }
+  .tab .fresh-badge {
+    background: var(--honey); color: #1f1600; border-radius: 999px; font-size: 11px; font-weight: 600;
+    padding: 0 6px; margin-left: 6px;
+  }
+  tr.fresh-row td { background: var(--honey-soft); }
+  .pill.arrived { background: var(--honey); color: #1f1600; margin-right: 6px; font-weight: 600; }
+  @media (max-width: 720px) { .arrivals-cards .card { flex-basis: 78vw; } }

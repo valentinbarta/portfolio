@@ -7,6 +7,7 @@ This is a small website for working the **Boecia Talent CRM** Google Sheet, host
 - open any row to edit Owner, Next step, Next step date, Notes or any other field
 - add rows by hand, e.g. a LinkedIn contact who replied becomes a Lead
 - delete rows (a copy goes to an `Archive · <tab>` sheet first, so nothing is lost)
+- see new submissions in a separate **Just arrived** box, even ones that come in while you're looking
 - search, filter by owner, and switch to a sortable table view
 
 ![Board view](screenshot.png)
@@ -60,6 +61,16 @@ Cloudflare issues the HTTPS certificate on its own, usually within minutes. Then
 2. Add their Gmail under **Google Auth Platform → Audience → Test users** (up to 100 people).
 
 To remove access, un-share the sheet.
+
+## Just arrived
+Anything you haven't looked at yet goes in the **Just arrived** box above the board instead of its stage column. This includes submissions that come in while the CRM is open (it checks every 30 seconds, and again when you come back to the browser tab) and ones that arrived while it was closed. When one arrives you get:
+- a message with the person's name
+- a count in the browser tab title, like `(1) Boecia Talent CRM`
+- a "1 new" badge on the Candidates / Leads / Contact tab
+
+A card leaves the box when you open it, move it, or click **✓ Seen**. **Mark all as seen** clears the whole box. In the table view, unseen rows come first with a **New** label.
+
+"Seen" is remembered per browser, so your phone and laptop each keep their own. The first time you open the CRM on a device, everything already in the sheet counts as seen.
 
 ## Everyday notes
 - **Sessions last about an hour.** When one expires, a **Reconnect** button appears. It's one click, with no password if you're still signed in to Google.

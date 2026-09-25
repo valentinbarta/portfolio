@@ -42,10 +42,63 @@ import { createSheetsClient } from './sheets.js';
     owner: '',
     sort: { key: 'Received', dir: -1 },
     drawer: null,      // { mode: 'edit'|'new', row }
-    busy: false
+    busy: false,
+    seen: {},          // tab -> Set of Submission IDs already looked at on this device
+    flash: new Set()   // ids that just arrived, animated once
   };
 
   var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------- "Just arrived" tracking ---------------- */
+
+  // Rows are "fresh" until opened, moved or ticked as seen. Kept per device in localStorage,
+  // so anything that came in while the CRM was closed also shows up as fresh.
+  var SEEN_KEY = 'boecia-crm-seen-v1';
+  var SINGULAR = { Candidates: 'candidate', Leads: 'lead', Contact: 'contact message' };
+
+  function loadSeen() {
+    try {
+      var o = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+      var out = {};
+      Object.keys(o).forEach(function (t) { out[t] = new Set(o[t]); });
+      return out;
+    } catch (e) { return {}; }
+  }
+
+  function saveSeen() {
+    try {
+      var o = {};
+      Object.keys(state.seen).forEach(function (t) { o[t] = Array.from(state.seen[t]); });
+      localStorage.setItem(SEEN_KEY, JSON.stringify(o));
+    } catch (e) { /* storage blocked: fresh tracking lasts for this visit only */ }
+  }
+
+  state.seen = loadSeen();
+
+  function isFresh(tab, r) { var s = state.seen[tab]; return !!s && !s.has(r.id); }
+
+  function freshCount(tab) {
+    var d = state.data[tab];
+    return d ? d.rows.filter(function (r) { return isFresh(tab, r); }).length : 0;
+  }
+
+  function markSeen(tab, ids) {
+    var s = state.seen[tab] || (state.seen[tab] = new Set());
+    var changed = false;
+    ids.forEach(function (id) { if (!s.has(id)) { s.add(id); changed = true; } });
+    if (changed) saveSeen();
+    return changed;
+  }
+
+  var announced = 0;
+  function announce(tab, rows) {
+    announced++;
+    var lay = LAYOUT[tab];
+    var name = rows[0].values[lay.title] || rows[0].values[lay.sub] || '';
+    toast(rows.length === 1 ? 'New ' + SINGULAR[tab] + (name ? ': ' + name : '') : rows.length + ' new ' + SINGULAR[tab] + 's');
+    rows.forEach(function (r) { state.flash.add(r.id); });
+    setTimeout(function () { rows.forEach(function (r) { state.flash.delete(r.id); }); }, 2500);
+  }
 
   /* ---------------- Google Sheets calls ---------------- */
 
@@ -58,7 +111,26 @@ import { createSheetsClient } from './sheets.js';
   }
 
   function load(tab) {
-    return call('getData', tab).then(function (d) { state.data[tab] = d; return d; });
+    return call('getData', tab).then(function (d) {
+      var prev = state.data[tab];
+      var seen = state.seen[tab];
+      if (!seen) {
+        // First visit on this device: what's already in the sheet counts as seen.
+        state.seen[tab] = new Set(d.rows.map(function (r) { return r.id; }));
+      } else {
+        // Forget deleted rows so storage doesn't grow forever.
+        var ids = new Set(d.rows.map(function (r) { return r.id; }));
+        seen.forEach(function (id) { if (!ids.has(id)) seen.delete(id); });
+      }
+      saveSeen();
+      state.data[tab] = d;
+      if (prev) {
+        var before = new Set(prev.rows.map(function (r) { return r.id; }));
+        var arrived = d.rows.filter(function (r) { return !before.has(r.id) && isFresh(tab, r); });
+        if (arrived.length) announce(tab, arrived);
+      }
+      return d;
+    });
   }
 
   function loadAll(showErrors) {
@@ -128,6 +200,8 @@ import { createSheetsClient } from './sheets.js';
   /* ---------------- rendering ---------------- */
 
   function render() {
+    var total = TABS.reduce(function (n, t) { return n + freshCount(t); }, 0);
+    document.title = (total ? '(' + total + ') ' : '') + 'Boecia Talent CRM';
     renderTabs();
     renderOwnerFilter();
     var d = current();
@@ -140,7 +214,8 @@ import { createSheetsClient } from './sheets.js';
     $('tabs').innerHTML = TABS.map(function (t) {
       var d = state.data[t];
       return '<button class="tab" role="tab" data-tab="' + t + '" aria-selected="' + (t === state.tab) + '">' +
-        esc(t) + '<span class="count">' + (d ? d.rows.length : '–') + '</span></button>';
+        esc(t) + '<span class="count">' + (d ? d.rows.length : '–') + '</span>' +
+        (freshCount(t) ? '<span class="fresh-badge">' + freshCount(t) + ' new</span>' : '') + '</button>';
     }).join('');
   }
 
@@ -164,7 +239,9 @@ import { createSheetsClient } from './sheets.js';
   }
 
   function renderBoard(d) {
-    var rows = filtered(d);
+    var all = filtered(d);
+    var fresh = all.filter(function (r) { return isFresh(state.tab, r); });
+    var rows = all.filter(function (r) { return !isFresh(state.tab, r); });
     var stages = d.stages.slice();
     // Rows whose stage is blank or not in the Lists tab still need a home.
     var extra = {};
@@ -173,7 +250,12 @@ import { createSheetsClient } from './sheets.js';
 
     var lay = LAYOUT[state.tab];
     var t = today();
-    var html = statusLine(d, rows) + '<div class="board">' + stages.map(function (stage) {
+    var arrivals = fresh.length ? '<section class="arrivals" aria-label="Just arrived">' +
+      '<div class="arrivals-head"><h2>Just arrived <span class="n">' + fresh.length + '</span></h2>' +
+      '<span class="hint">Not looked at yet. Open, move or tick a card to file it under its stage.</span>' +
+      '<button class="btn" type="button" data-seen-all>Mark all as seen</button></div>' +
+      '<div class="arrivals-cards">' + fresh.map(function (r) { return cardHtml(d, r, lay, t, true); }).join('') + '</div></section>' : '';
+    var html = statusLine(d, all) + arrivals + '<div class="board">' + stages.map(function (stage) {
       var inCol = rows.filter(function (r) { return stageOf(d, r) === stage; });
       return '<section class="col" data-stage="' + esc(stage) + '">' +
         '<h3><span>' + esc(stage || 'No ' + d.stageHeader.toLowerCase()) + '</span><span>' + inCol.length + '</span></h3>' +
@@ -183,7 +265,7 @@ import { createSheetsClient } from './sheets.js';
     $('main').innerHTML = html;
   }
 
-  function cardHtml(d, r, lay, t) {
+  function cardHtml(d, r, lay, t, fresh) {
     var v = r.values;
     var title = v[lay.title] || v[lay.sub] || '(no name)';
     var chips = lay.chips.filter(function (c) { return v[c[0]]; }).map(function (c) {
@@ -194,11 +276,14 @@ import { createSheetsClient } from './sheets.js';
     var dueHtml = due ? '<span class="due' + (due < t ? ' late' : '') + '" title="' + esc((v['Next step'] ? v['Next step'] + ' · ' : '') + due) + '">⏱ ' + esc(shortDate(due)) + '</span>' : '<span></span>';
     var opts = d.stages.map(function (s) { return '<option' + (s === stage ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('');
     if (d.stages.indexOf(stage) === -1) opts = '<option selected disabled>' + esc(stage || '—') + '</option>' + opts;
-    return '<article class="card' + (stage === d.stages[0] ? ' new' : '') + '" draggable="true" data-id="' + esc(r.id) + '">' +
+    var cls = 'card' + (stage === d.stages[0] ? ' new' : '') + (fresh ? ' fresh' : '') + (state.flash.has(r.id) ? ' arrived' : '');
+    return '<article class="' + cls + '" draggable="true" data-id="' + esc(r.id) + '">' +
       '<div class="title">' + esc(title) + '</div>' +
       (v[lay.sub] && v[lay.title] ? '<div class="sub">' + esc(v[lay.sub]) + '</div>' : '') +
       (chips ? '<div class="chips">' + chips + '</div>' : '') +
-      '<div class="foot">' + dueHtml + '<select class="stage-select" aria-label="Move to">' + opts + '</select></div>' +
+      (fresh && v.Received ? '<div class="received">Received ' + esc(v.Received) + '</div>' : '') +
+      '<div class="foot">' + (fresh ? '<button class="seen-btn" type="button" data-seen title="Mark as seen">✓ Seen</button>' : dueHtml) +
+      '<select class="stage-select" aria-label="Move to">' + opts + '</select></div>' +
       '</article>';
   }
 
@@ -217,11 +302,16 @@ import { createSheetsClient } from './sheets.js';
       }
       return x < y ? -dir : x > y ? dir : 0;
     });
+    // Unseen rows go first so they stand out in the table too.
+    var tab = state.tab;
+    rows = rows.filter(function (r) { return isFresh(tab, r); }).concat(rows.filter(function (r) { return !isFresh(tab, r); }));
     var html = statusLine(d, rows) + '<div class="table-wrap"><table><thead><tr>' + cols.map(function (h) {
       return '<th data-sort="' + esc(h) + '">' + esc(h) + (h === k ? ' <span class="arrow">' + (dir > 0 ? '▲' : '▼') + '</span>' : '') + '</th>';
     }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
-      return '<tr data-id="' + esc(r.id) + '">' + cols.map(function (h) {
+      var fresh = isFresh(tab, r);
+      return '<tr data-id="' + esc(r.id) + '"' + (fresh ? ' class="fresh-row"' : '') + '>' + cols.map(function (h, i) {
         var val = r.values[h] || '';
+        if (i === 0 && fresh) return '<td title="' + esc(val) + '"><span class="pill arrived">New</span>' + esc(val) + '</td>';
         if (h === d.stageHeader) return '<td><span class="pill' + (val === d.stages[0] ? ' new' : '') + '">' + esc(val) + '</span></td>';
         return '<td title="' + esc(val) + '">' + esc(val) + '</td>';
       }).join('') + '</tr>';
@@ -234,6 +324,7 @@ import { createSheetsClient } from './sheets.js';
   function openDrawer(mode, row) {
     var d = current();
     state.drawer = { mode: mode, tab: state.tab, row: row };
+    if (row && markSeen(state.tab, [row.id])) render();
     var lay = LAYOUT[state.tab];
     $('drawer-title').textContent = mode === 'new' ? 'New ' + state.tab.replace(/s$/, '').toLowerCase()
       : (row.values[lay.title] || row.values[lay.sub] || 'Row');
@@ -305,7 +396,7 @@ import { createSheetsClient } from './sheets.js';
     if (dr.mode === 'new') {
       var data = {};
       Object.keys(vals).forEach(function (h) { if (String(vals[h]).trim()) data[h] = vals[h]; });
-      p = call('createRow', dr.tab, data).then(function (row) { replaceRow(dr.tab, row); toast('Added'); });
+      p = call('createRow', dr.tab, data).then(function (row) { markSeen(dr.tab, [row.id]); replaceRow(dr.tab, row); toast('Added'); });
     } else {
       var patch = {};
       Object.keys(vals).forEach(function (h) { if (dr.initial[h] !== vals[h]) patch[h] = vals[h]; });
@@ -350,7 +441,10 @@ import { createSheetsClient } from './sheets.js';
   function move(id, stage) {
     var tab = state.tab, d = state.data[tab];
     var row = d.rows.find(function (r) { return r.id === id; });
-    if (!row || stageOf(d, row) === stage) return;
+    if (!row) return;
+    // Moving a card, even dropping it on its current stage, files it out of "Just arrived".
+    if (markSeen(tab, [id]) && stageOf(d, row) === stage) { render(); return; }
+    if (stageOf(d, row) === stage) return;
     var before = row.values[d.stageHeader];
     row.values[d.stageHeader] = stage;
     render();
@@ -391,11 +485,23 @@ import { createSheetsClient } from './sheets.js';
 
   $('refresh').addEventListener('click', function () {
     $('refresh').disabled = true;
-    loadAll(true).then(function () { toast('Up to date'); }).then(function () { $('refresh').disabled = false; });
+    var before = announced;
+    loadAll(true).then(function () { if (announced === before) toast('Up to date'); }).then(function () { $('refresh').disabled = false; });
   });
   $('add').addEventListener('click', function () { if (current()) openDrawer('new', null); });
 
   $('main').addEventListener('click', function (e) {
+    if (e.target.closest('[data-seen-all]')) {
+      markSeen(state.tab, current().rows.filter(function (r) { return isFresh(state.tab, r); }).map(function (r) { return r.id; }));
+      render();
+      return;
+    }
+    var seenBtn = e.target.closest('[data-seen]');
+    if (seenBtn) {
+      markSeen(state.tab, [seenBtn.closest('[data-id]').getAttribute('data-id')]);
+      render();
+      return;
+    }
     if (e.target.closest('select, a')) return;
     var th = e.target.closest('th[data-sort]');
     if (th) {
@@ -457,11 +563,13 @@ import { createSheetsClient } from './sheets.js';
     if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.drawer) { e.preventDefault(); save(); }
   });
 
-  // Pick up new Tally submissions without a manual refresh.
-  setInterval(function () {
+  // Pick up new Tally submissions without a manual refresh: every 30 s, and when you come back to the tab.
+  function poll() {
     if (document.hidden || state.drawer || dragId || state.busy || !auth.isSignedIn()) return;
     loadAll(false);
-  }, 60000);
+  }
+  setInterval(poll, 30000);
+  document.addEventListener('visibilitychange', poll);
 
   /* ---------------- start ---------------- */
   try { var saved = localStorage.getItem('boecia-crm-view'); if (saved === 'table' || saved === 'board') state.view = saved; } catch (e) {}
