@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boecia Talent CRM</title>
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface-2: #f1eee6;
+    --border: #e4dfd3;
+    --text: #1f1d18;
+    --muted: #6d675b;
+    --honey: #d99a1e;
+    --honey-soft: #fbefd3;
+    --honey-text: #7a5208;
+    --danger: #b3261e;
+    --danger-soft: #fbe3e1;
+    --ok: #2f7d4f;
+    --shadow: 0 1px 2px rgba(31, 29, 24, .06), 0 2px 8px rgba(31, 29, 24, .05);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16150f;
+      --surface: #1f1e18;
+      --surface-2: #28261f;
+      --border: #38352c;
+      --text: #efeadf;
+      --muted: #a39d8f;
+      --honey: #e8ad3a;
+      --honey-soft: #3a2f16;
+      --honey-text: #f3cf85;
+      --danger: #f08a80;
+      --danger-soft: #3d1f1c;
+      --ok: #7fcb9c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+
+  /* ---------- top bar ---------- */
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+  }
+  .brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--honey); }
+  .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 9px; }
+  .tab {
+    border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+    color: var(--muted); font-weight: 500; white-space: nowrap;
+  }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .tab .count { font-variant-numeric: tabular-nums; opacity: .7; margin-left: 4px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+  .controls input[type=search], .controls select {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px; min-width: 0;
+  }
+  .controls input[type=search] { width: 200px; }
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 12px;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  a.btn { color: var(--text); }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--honey); border-color: var(--honey); color: #1f1600; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.danger { color: var(--danger); }
+  .btn.danger.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
+
+  main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
+  .status-line { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
+
+  /* ---------- board ---------- */
+  .board { display: flex; gap: 12px; align-items: flex-start; min-height: 100%; }
+  .col {
+    flex: 0 0 260px; background: var(--surface-2); border-radius: var(--radius); padding: 8px;
+    display: flex; flex-direction: column; max-height: 100%; border: 2px solid transparent;
+  }
+  .col.drop { border-color: var(--honey); background: var(--honey-soft); }
+  .col h3 {
+    margin: 2px 4px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+  .col .cards { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+  .empty-col { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0; opacity: .7; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .card:hover { border-color: var(--honey); }
+  .card.dragging { opacity: .4; }
+  .card.new { border-left: 3px solid var(--honey); }
+  .card .title { font-weight: 600; overflow-wrap: anywhere; }
+  .card .sub { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .chip { background: var(--surface-2); border-radius: 999px; padding: 1px 8px; font-size: 12px; color: var(--muted); }
+  .card .foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; }
+  .card .foot select { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; font-size: 12px; padding: 2px 4px; max-width: 150px; }
+  .card .due { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .card .due.late { color: var(--danger); font-weight: 600; }
+
+  /* ---------- table ---------- */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  th { position: sticky; top: 0; background: var(--surface-2); font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+  th .arrow { opacity: .6; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--surface-2); }
+  .pill { background: var(--surface-2); padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+  .pill.new { background: var(--honey-soft); color: var(--honey-text); }
+
+  /* ---------- drawer ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .3); opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  aside {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); background: var(--surface);
+    border-left: 1px solid var(--border); transform: translateX(100%); transition: transform .18s ease-out;
+    display: flex; flex-direction: column; z-index: 10;
+  }
+  aside.open { transform: none; }
+  aside .head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  aside .head h2 { margin: 0; font-size: 16px; flex: 1; overflow-wrap: anywhere; }
+  aside form { flex: 1; overflow: auto; padding: 12px 16px; display: grid; gap: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .field .row { display: flex; gap: 6px; align-items: flex-start; }
+  .field input, .field select, .field textarea {
+    width: 100%; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; padding: 7px 9px;
+  }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .field input:disabled { background: var(--surface-2); color: var(--muted); }
+  .field input:focus, .field select:focus, .field textarea:focus, .controls input:focus { outline: 2px solid var(--honey); outline-offset: -1px; border-color: var(--honey); }
+  .field a.open { flex: none; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; text-decoration: none; color: var(--honey-text); background: var(--honey-soft); }
+  aside .actions { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  aside .actions .spacer { flex: 1; }
+  .x { border: 0; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); padding: 2px 6px; }
+
+  /* ---------- toast / loading ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--text); color: var(--bg); padding: 9px 14px; border-radius: 8px; transition: all .2s; z-index: 20;
+    max-width: calc(100% - 32px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+  .toast.error { background: var(--danger); color: #fff; }
+  .loading { color: var(--muted); padding: 40px; text-align: center; }
+
+  @media (max-width: 720px) {
+    header { padding: 10px 16px; }
+    .controls { margin-left: 0; width: 100%; }
+    .controls input[type=search] { flex: 1 1 100%; width: auto; }
+    main { padding: 12px 16px; }
+    .col { flex-basis: 78vw; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>Boecia Talent CRM</div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search…" aria-label="Search">
+    <select id="owner" aria-label="Filter by owner"></select>
+    <div class="seg" role="group" aria-label="View">
+      <button id="view-board" aria-pressed="true">Board</button>
+      <button id="view-table" aria-pressed="false">Table</button>
+    </div>
+    <button class="btn" id="refresh" title="Refresh">↻</button>
+    <a class="btn" id="open-sheet" target="_blank" rel="noopener">Sheet ↗</a>
+    <button class="btn primary" id="add">+ Add</button>
+  </div>
+</header>
+
+<main id="main"><div class="loading">Loading…</div></main>
+
+<div class="scrim" id="scrim"></div>
+<aside id="drawer" aria-hidden="true">
+  <div class="head">
+    <h2 id="drawer-title"></h2>
+    <button class="x" id="drawer-close" aria-label="Close">×</button>
+  </div>
+  <form id="drawer-form" autocomplete="off"></form>
+  <div class="actions">
+    <button class="btn danger" id="delete" type="button">Delete</button>
+    <span class="spacer"></span>
+    <button class="btn" id="cancel" type="button">Cancel</button>
+    <button class="btn primary" id="save" type="button">Save</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TABS = ['Candidates', 'Leads', 'Contact'];
+
+  // What each tab shows on a card and in the table (only headers that exist are used).
+  var LAYOUT = {
+    Candidates: {
+      title: 'Full name', sub: 'Main role',
+      chips: [['Years exp.', function (v) { return v + ' yrs'; }], ['Country'], ['English'], ['Salary expectation (USD/yr)', function (v) { return '$' + v; }]],
+      table: ['Received', 'Stage', 'Full name', 'Main role', 'Years exp.', 'Country', 'English', 'Salary expectation (USD/yr)', 'Owner', 'Next step', 'Next step date']
+    },
+    Leads: {
+      title: 'Company', sub: 'Contact name',
+      chips: [['Roles'], ['Hires', function (v) { return v + ' hires'; }], ['Budget (USD/yr)', function (v) { return '$' + v; }]],
+      table: ['Received', 'Stage', 'Company', 'Contact name', 'Roles', 'Hires', 'Budget (USD/yr)', 'Timeline', 'Owner', 'Next step', 'Next step date']
+    },
+    Contact: {
+      title: 'Name', sub: 'Topic',
+      chips: [['Email']],
+      table: ['Received', 'Status', 'Name', 'Email', 'Topic', 'Message']
+    }
+  };
+  var LONG_FIELDS = ['Notes', 'Our notes', 'Their notes', 'Message', 'Main technologies', 'Other answers', 'Roles'];
+
+  var state = {
+    tab: 'Candidates',
+    view: 'board',
+    data: {},          // tab -> getData() result
+    search: '',
+    owner: '',
+    sort: { key: 'Received', dir: -1 },
+    drawer: null,      // { mode: 'edit'|'new', row }
+    busy: false
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------- server calls ---------------- */
+
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (e) { reject(e && e.message ? e : new Error(String(e))); });
+      runner[fn].apply(runner, args);
+    });
+  }
+
+  function load(tab) {
+    return call('getData', tab).then(function (d) { state.data[tab] = d; return d; });
+  }
+
+  function loadAll(showErrors) {
+    return Promise.all(TABS.map(function (t) {
+      return load(t).catch(function (e) { if (showErrors) toast(t + ': ' + e.message, true); });
+    })).then(render);
+  }
+
+  /* ---------------- helpers ---------------- */
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function current() { return state.data[state.tab]; }
+  function has(d, h) { return d.headers.indexOf(h) !== -1; }
+  function stageOf(d, row) { return row.values[d.stageHeader] || ''; }
+
+  function linkFor(value) {
+    var v = String(value || '').trim();
+    if (/^https?:\/\//i.test(v)) return v;
+    if (/^www\./i.test(v) || /^[\w.-]+\.(com|io|dev|app|net|org|co)(\/|$)/i.test(v)) return 'https://' + v;
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return 'mailto:' + v;
+    return '';
+  }
+
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function shortDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    return m ? Number(m[3]) + ' ' + MONTHS[Number(m[2]) - 1] : v;
+  }
+
+  function isLong(h, v) { return LONG_FIELDS.indexOf(h) !== -1 || String(v || '').length > 70; }
+
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function filtered(d) {
+    var q = state.search.toLowerCase();
+    return d.rows.filter(function (r) {
+      if (state.owner) {
+        var o = (r.values.Owner || '').trim();
+        if (state.owner === '__none' ? o !== '' : o !== state.owner) return false;
+      }
+      if (!q) return true;
+      return Object.keys(r.values).some(function (k) { return String(r.values[k]).toLowerCase().indexOf(q) !== -1; });
+    });
+  }
+
+  function toast(msg, isError) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = 'toast' + (isError ? ' error' : ''); }, isError ? 5000 : 2200);
+  }
+
+  function replaceRow(tab, row) {
+    var d = state.data[tab];
+    var i = d.rows.findIndex(function (r) { return r.id === row.id; });
+    if (i === -1) d.rows.push(row); else d.rows[i] = row;
+  }
+
+  /* ---------------- rendering ---------------- */
+
+  function render() {
+    renderTabs();
+    renderOwnerFilter();
+    var d = current();
+    if (!d) { $('main').innerHTML = '<div class="loading">Could not load ' + esc(state.tab) + '.</div>'; return; }
+    $('open-sheet').href = d.sheetUrl;
+    if (state.view === 'board') renderBoard(d); else renderTable(d);
+  }
+
+  function renderTabs() {
+    $('tabs').innerHTML = TABS.map(function (t) {
+      var d = state.data[t];
+      return '<button class="tab" role="tab" data-tab="' + t + '" aria-selected="' + (t === state.tab) + '">' +
+        esc(t) + '<span class="count">' + (d ? d.rows.length : '–') + '</span></button>';
+    }).join('');
+  }
+
+  function renderOwnerFilter() {
+    var d = current();
+    var owners = {};
+    if (d && has(d, 'Owner')) d.rows.forEach(function (r) { var o = (r.values.Owner || '').trim(); if (o) owners[o] = 1; });
+    var opts = '<option value="">All owners</option><option value="__none">Unassigned</option>' +
+      Object.keys(owners).sort().map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('');
+    var sel = $('owner');
+    sel.innerHTML = opts;
+    sel.style.display = d && has(d, 'Owner') ? '' : 'none';
+    if (state.owner && state.owner !== '__none' && !owners[state.owner]) state.owner = '';
+    sel.value = state.owner;
+  }
+
+  function statusLine(d, rows) {
+    var total = d.rows.length;
+    var s = rows.length === total ? total + ' ' + (total === 1 ? 'row' : 'rows') : rows.length + ' of ' + total + ' rows';
+    return '<p class="status-line">' + s + (total === 0 ? ' · New Tally submissions will appear here automatically, or use “+ Add”.' : '') + '</p>';
+  }
+
+  function renderBoard(d) {
+    var rows = filtered(d);
+    var stages = d.stages.slice();
+    // Rows whose stage is blank or not in the Lists tab still need a home.
+    var extra = {};
+    rows.forEach(function (r) { var s = stageOf(d, r); if (stages.indexOf(s) === -1) extra[s] = 1; });
+    Object.keys(extra).forEach(function (s) { stages.push(s); });
+
+    var lay = LAYOUT[state.tab];
+    var t = today();
+    var html = statusLine(d, rows) + '<div class="board">' + stages.map(function (stage) {
+      var inCol = rows.filter(function (r) { return stageOf(d, r) === stage; });
+      return '<section class="col" data-stage="' + esc(stage) + '">' +
+        '<h3><span>' + esc(stage || 'No ' + d.stageHeader.toLowerCase()) + '</span><span>' + inCol.length + '</span></h3>' +
+        '<div class="cards">' + (inCol.length ? inCol.map(function (r) { return cardHtml(d, r, lay, t); }).join('') : '<div class="empty-col">Drop here</div>') +
+        '</div></section>';
+    }).join('') + '</div>';
+    $('main').innerHTML = html;
+  }
+
+  function cardHtml(d, r, lay, t) {
+    var v = r.values;
+    var title = v[lay.title] || v[lay.sub] || '(no name)';
+    var chips = lay.chips.filter(function (c) { return v[c[0]]; }).map(function (c) {
+      return '<span class="chip">' + esc(c[1] ? c[1](v[c[0]]) : v[c[0]]) + '</span>';
+    }).join('');
+    var stage = stageOf(d, r);
+    var due = v['Next step date'];
+    var dueHtml = due ? '<span class="due' + (due < t ? ' late' : '') + '" title="' + esc((v['Next step'] ? v['Next step'] + ' · ' : '') + due) + '">⏱ ' + esc(shortDate(due)) + '</span>' : '<span></span>';
+    var opts = d.stages.map(function (s) { return '<option' + (s === stage ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('');
+    if (d.stages.indexOf(stage) === -1) opts = '<option selected disabled>' + esc(stage || '—') + '</option>' + opts;
+    return '<article class="card' + (stage === d.stages[0] ? ' new' : '') + '" draggable="true" data-id="' + esc(r.id) + '">' +
+      '<div class="title">' + esc(title) + '</div>' +
+      (v[lay.sub] && v[lay.title] ? '<div class="sub">' + esc(v[lay.sub]) + '</div>' : '') +
+      (chips ? '<div class="chips">' + chips + '</div>' : '') +
+      '<div class="foot">' + dueHtml + '<select class="stage-select" aria-label="Move to">' + opts + '</select></div>' +
+      '</article>';
+  }
+
+  function renderTable(d) {
+    var rows = filtered(d);
+    var cols = LAYOUT[state.tab].table.filter(function (h) { return has(d, h); });
+    var k = state.sort.key, dir = state.sort.dir;
+    rows = rows.slice().sort(function (a, b) {
+      var x, y;
+      if (k === 'Received' && a.receivedTs != null && b.receivedTs != null) { x = a.receivedTs; y = b.receivedTs; }
+      else {
+        x = a.values[k] || ''; y = b.values[k] || '';
+        var nx = parseFloat(String(x).replace(/[^\d.-]/g, '')), ny = parseFloat(String(y).replace(/[^\d.-]/g, ''));
+        if (!isNaN(nx) && !isNaN(ny) && /^[\d$.,\s-]+$/.test(x) && /^[\d$.,\s-]+$/.test(y)) { x = nx; y = ny; }
+        else { x = String(x).toLowerCase(); y = String(y).toLowerCase(); }
+      }
+      return x < y ? -dir : x > y ? dir : 0;
+    });
+    var html = statusLine(d, rows) + '<div class="table-wrap"><table><thead><tr>' + cols.map(function (h) {
+      return '<th data-sort="' + esc(h) + '">' + esc(h) + (h === k ? ' <span class="arrow">' + (dir > 0 ? '▲' : '▼') + '</span>' : '') + '</th>';
+    }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
+      return '<tr data-id="' + esc(r.id) + '">' + cols.map(function (h) {
+        var val = r.values[h] || '';
+        if (h === d.stageHeader) return '<td><span class="pill' + (val === d.stages[0] ? ' new' : '') + '">' + esc(val) + '</span></td>';
+        return '<td title="' + esc(val) + '">' + esc(val) + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div>';
+    $('main').innerHTML = html;
+  }
+
+  /* ---------------- drawer ---------------- */
+
+  function openDrawer(mode, row) {
+    var d = current();
+    state.drawer = { mode: mode, tab: state.tab, row: row };
+    var lay = LAYOUT[state.tab];
+    $('drawer-title').textContent = mode === 'new' ? 'New ' + state.tab.replace(/s$/, '').toLowerCase()
+      : (row.values[lay.title] || row.values[lay.sub] || 'Row');
+    $('delete').style.display = mode === 'new' ? 'none' : '';
+    disarmDelete();
+
+    var values = row ? row.values : {};
+    $('drawer-form').innerHTML = d.headers.map(function (h, i) {
+      var v = values[h] || '';
+      var id = 'f' + i;
+      var ro = d.readOnly.indexOf(h) !== -1;
+      if (mode === 'new' && ro) return '';
+      var input;
+      if (h === d.stageHeader) {
+        var opts = d.stages.slice();
+        if (mode === 'new' && !v) v = opts[0] || '';
+        if (v && opts.indexOf(v) === -1) opts.unshift(v);
+        input = '<select id="' + id + '" data-h="' + esc(h) + '">' + opts.map(function (s) {
+          return '<option' + (s === v ? ' selected' : '') + '>' + esc(s) + '</option>';
+        }).join('') + '</select>';
+      } else if (d.dateFields.indexOf(h) !== -1) {
+        input = '<input type="date" id="' + id + '" data-h="' + esc(h) + '" value="' + esc(/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '') + '">';
+      } else if (!ro && isLong(h, v)) {
+        input = '<textarea id="' + id + '" data-h="' + esc(h) + '">' + esc(v) + '</textarea>';
+      } else {
+        input = '<input type="text" id="' + id + '" data-h="' + esc(h) + '" value="' + esc(v) + '"' + (ro ? ' disabled' : '') + '>';
+      }
+      var link = linkFor(v);
+      var open = link ? '<a class="open" href="' + esc(link) + '" target="_blank" rel="noopener" title="Open">↗</a>' : '';
+      return '<div class="field"><label for="' + id + '">' + esc(h) + '</label><div class="row">' + input + open + '</div></div>';
+    }).join('');
+
+    // Compare against what the form showed, so fields the form can't represent (e.g. a
+    // non-ISO date string) are never overwritten unless the user actually changes them.
+    state.drawer.initial = formValues();
+    $('drawer').classList.add('open');
+    $('drawer').setAttribute('aria-hidden', 'false');
+    $('scrim').classList.add('open');
+    var first = $('drawer-form').querySelector('input:not(:disabled), select, textarea');
+    if (mode === 'new' && first) first.focus();
+  }
+
+  function closeDrawer() {
+    state.drawer = null;
+    $('drawer').classList.remove('open');
+    $('drawer').setAttribute('aria-hidden', 'true');
+    $('scrim').classList.remove('open');
+  }
+
+  function formValues() {
+    var out = {};
+    $('drawer-form').querySelectorAll('[data-h]').forEach(function (el) {
+      if (!el.disabled) out[el.getAttribute('data-h')] = el.value;
+    });
+    return out;
+  }
+
+  function setBusy(b) {
+    state.busy = b;
+    ['save', 'delete', 'cancel'].forEach(function (id) { $(id).disabled = b; });
+  }
+
+  function save() {
+    var dr = state.drawer;
+    if (!dr || state.busy) return;
+    var vals = formValues();
+    setBusy(true);
+    var p;
+    if (dr.mode === 'new') {
+      var data = {};
+      Object.keys(vals).forEach(function (h) { if (String(vals[h]).trim()) data[h] = vals[h]; });
+      p = call('createRow', dr.tab, data).then(function (row) { replaceRow(dr.tab, row); toast('Added'); });
+    } else {
+      var patch = {};
+      Object.keys(vals).forEach(function (h) { if (dr.initial[h] !== vals[h]) patch[h] = vals[h]; });
+      if (!Object.keys(patch).length) { setBusy(false); closeDrawer(); return; }
+      p = call('updateRow', dr.tab, dr.row.id, patch).then(function (row) { replaceRow(dr.tab, row); toast('Saved'); });
+    }
+    p.then(function () { closeDrawer(); render(); })
+      .catch(function (e) { toast(e.message, true); })
+      .then(function () { setBusy(false); });
+  }
+
+  function disarmDelete() {
+    clearTimeout(disarmDelete._t);
+    var b = $('delete');
+    b.classList.remove('armed');
+    b.textContent = 'Delete';
+  }
+
+  function remove() {
+    var dr = state.drawer;
+    if (!dr || dr.mode !== 'edit' || state.busy) return;
+    var b = $('delete');
+    if (!b.classList.contains('armed')) {
+      b.classList.add('armed');
+      b.textContent = 'Click again to delete';
+      disarmDelete._t = setTimeout(disarmDelete, 4000);
+      return;
+    }
+    disarmDelete();
+    setBusy(true);
+    call('deleteRow', dr.tab, dr.row.id).then(function (res) {
+      var d = state.data[dr.tab];
+      d.rows = d.rows.filter(function (r) { return r.id !== dr.row.id; });
+      closeDrawer();
+      render();
+      toast('Deleted · copy kept in “' + res.archivedTo + '”');
+    }).catch(function (e) { toast(e.message, true); }).then(function () { setBusy(false); });
+  }
+
+  /* ---------------- moving between stages ---------------- */
+
+  function move(id, stage) {
+    var tab = state.tab, d = state.data[tab];
+    var row = d.rows.find(function (r) { return r.id === id; });
+    if (!row || stageOf(d, row) === stage) return;
+    var before = row.values[d.stageHeader];
+    row.values[d.stageHeader] = stage;
+    render();
+    call('moveRow', tab, id, stage).then(function (fresh) {
+      replaceRow(tab, fresh);
+      if (state.tab === tab) render();
+      toast('Moved to ' + stage);
+    }).catch(function (e) {
+      row.values[d.stageHeader] = before;
+      if (state.tab === tab) render();
+      toast(e.message, true);
+    });
+  }
+
+  /* ---------------- events ---------------- */
+
+  $('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]');
+    if (!b) return;
+    state.tab = b.getAttribute('data-tab');
+    state.owner = '';
+    state.sort = { key: 'Received', dir: -1 };
+    render();
+  });
+
+  $('search').addEventListener('input', function (e) { state.search = e.target.value; render(); });
+  $('owner').addEventListener('change', function (e) { state.owner = e.target.value; render(); });
+
+  function setView(v) {
+    state.view = v;
+    $('view-board').setAttribute('aria-pressed', v === 'board');
+    $('view-table').setAttribute('aria-pressed', v === 'table');
+    try { localStorage.setItem('boecia-crm-view', v); } catch (e) {}
+    render();
+  }
+  $('view-board').addEventListener('click', function () { setView('board'); });
+  $('view-table').addEventListener('click', function () { setView('table'); });
+
+  $('refresh').addEventListener('click', function () {
+    $('refresh').disabled = true;
+    loadAll(true).then(function () { toast('Up to date'); }).then(function () { $('refresh').disabled = false; });
+  });
+  $('add').addEventListener('click', function () { if (current()) openDrawer('new', null); });
+
+  $('main').addEventListener('click', function (e) {
+    if (e.target.closest('select, a')) return;
+    var th = e.target.closest('th[data-sort]');
+    if (th) {
+      var key = th.getAttribute('data-sort');
+      state.sort = { key: key, dir: state.sort.key === key ? -state.sort.dir : 1 };
+      render();
+      return;
+    }
+    var el = e.target.closest('[data-id]');
+    if (!el) return;
+    var row = current().rows.find(function (r) { return r.id === el.getAttribute('data-id'); });
+    if (row) openDrawer('edit', row);
+  });
+
+  $('main').addEventListener('change', function (e) {
+    if (!e.target.classList.contains('stage-select')) return;
+    move(e.target.closest('[data-id]').getAttribute('data-id'), e.target.value);
+  });
+
+  var dragId = null;
+  $('main').addEventListener('dragstart', function (e) {
+    var card = e.target.closest && e.target.closest('.card');
+    if (!card) return;
+    dragId = card.getAttribute('data-id');
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragId);
+  });
+  $('main').addEventListener('dragend', function (e) {
+    var card = e.target.closest && e.target.closest('.card');
+    if (card) card.classList.remove('dragging');
+    document.querySelectorAll('.col.drop').forEach(function (c) { c.classList.remove('drop'); });
+    dragId = null;
+  });
+  $('main').addEventListener('dragover', function (e) {
+    var col = e.target.closest('.col');
+    if (!col || !dragId) return;
+    e.preventDefault();
+    document.querySelectorAll('.col.drop').forEach(function (c) { if (c !== col) c.classList.remove('drop'); });
+    col.classList.add('drop');
+  });
+  $('main').addEventListener('drop', function (e) {
+    var col = e.target.closest('.col');
+    if (!col || !dragId) return;
+    e.preventDefault();
+    var id = dragId;
+    dragId = null;
+    move(id, col.getAttribute('data-stage'));
+  });
+
+  $('drawer-close').addEventListener('click', closeDrawer);
+  $('cancel').addEventListener('click', closeDrawer);
+  $('scrim').addEventListener('click', closeDrawer);
+  $('save').addEventListener('click', save);
+  $('delete').addEventListener('click', remove);
+  $('drawer-form').addEventListener('submit', function (e) { e.preventDefault(); save(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && state.drawer) closeDrawer();
+    if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.drawer) { e.preventDefault(); save(); }
+  });
+
+  // Pick up new Tally submissions without a manual refresh.
+  setInterval(function () {
+    if (document.hidden || state.drawer || dragId || state.busy) return;
+    loadAll(false);
+  }, 60000);
+
+  /* ---------------- start ---------------- */
+  try { var saved = localStorage.getItem('boecia-crm-view'); if (saved === 'table' || saved === 'board') state.view = saved; } catch (e) {}
+  $('view-board').setAttribute('aria-pressed', state.view === 'board');
+  $('view-table').setAttribute('aria-pressed', state.view === 'table');
+
+  load(state.tab).then(render).catch(function (e) {
+    $('main').innerHTML = '<div class="loading">' + esc(e.message) + '</div>';
+  }).then(function () { return loadAll(false); });
+})();
+</script>
+</body>
+</html>
