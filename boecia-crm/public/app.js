@@ -1,213 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<base target="_top">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Boecia Talent CRM</title>
-<style>
-  :root {
-    --bg: #f7f5f0;
-    --surface: #ffffff;
-    --surface-2: #f1eee6;
-    --border: #e4dfd3;
-    --text: #1f1d18;
-    --muted: #6d675b;
-    --honey: #d99a1e;
-    --honey-soft: #fbefd3;
-    --honey-text: #7a5208;
-    --danger: #b3261e;
-    --danger-soft: #fbe3e1;
-    --ok: #2f7d4f;
-    --shadow: 0 1px 2px rgba(31, 29, 24, .06), 0 2px 8px rgba(31, 29, 24, .05);
-    --radius: 10px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16150f;
-      --surface: #1f1e18;
-      --surface-2: #28261f;
-      --border: #38352c;
-      --text: #efeadf;
-      --muted: #a39d8f;
-      --honey: #e8ad3a;
-      --honey-soft: #3a2f16;
-      --honey-text: #f3cf85;
-      --danger: #f08a80;
-      --danger-soft: #3d1f1c;
-      --ok: #7fcb9c;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg); color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  button, input, select, textarea { font: inherit; color: inherit; }
+import config from './config.js';
+import { createAuth } from './auth.js';
+import { createSheetsClient } from './sheets.js';
 
-  /* ---------- top bar ---------- */
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
-  }
-  .brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--honey); }
-  .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 9px; }
-  .tab {
-    border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; cursor: pointer;
-    color: var(--muted); font-weight: 500; white-space: nowrap;
-  }
-  .tab[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-  .tab .count { font-variant-numeric: tabular-nums; opacity: .7; margin-left: 4px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
-  .controls input[type=search], .controls select {
-    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px; min-width: 0;
-  }
-  .controls input[type=search] { width: 200px; }
-  .btn {
-    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 12px;
-    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-  }
-  a.btn { color: var(--text); }
-  .btn:hover { background: var(--surface-2); }
-  .btn.primary { background: var(--honey); border-color: var(--honey); color: #1f1600; font-weight: 600; }
-  .btn.primary:hover { filter: brightness(1.05); }
-  .btn.danger { color: var(--danger); }
-  .btn.danger.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; color: var(--muted); }
-  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
-
-  main { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
-  .status-line { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
-
-  /* ---------- board ---------- */
-  .board { display: flex; gap: 12px; align-items: flex-start; min-height: 100%; }
-  .col {
-    flex: 0 0 260px; background: var(--surface-2); border-radius: var(--radius); padding: 8px;
-    display: flex; flex-direction: column; max-height: 100%; border: 2px solid transparent;
-  }
-  .col.drop { border-color: var(--honey); background: var(--honey-soft); }
-  .col h3 {
-    margin: 2px 4px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
-    display: flex; justify-content: space-between;
-  }
-  .col .cards { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
-  .empty-col { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0; opacity: .7; }
-  .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
-    box-shadow: var(--shadow); cursor: pointer;
-  }
-  .card:hover { border-color: var(--honey); }
-  .card.dragging { opacity: .4; }
-  .card.new { border-left: 3px solid var(--honey); }
-  .card .title { font-weight: 600; overflow-wrap: anywhere; }
-  .card .sub { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  .chip { background: var(--surface-2); border-radius: 999px; padding: 1px 8px; font-size: 12px; color: var(--muted); }
-  .card .foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; }
-  .card .foot select { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; font-size: 12px; padding: 2px 4px; max-width: 150px; }
-  .card .due { font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .card .due.late { color: var(--danger); font-weight: 600; }
-
-  /* ---------- table ---------- */
-  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-  th { position: sticky; top: 0; background: var(--surface-2); font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
-  th .arrow { opacity: .6; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: var(--surface-2); }
-  .pill { background: var(--surface-2); padding: 1px 8px; border-radius: 999px; font-size: 12px; }
-  .pill.new { background: var(--honey-soft); color: var(--honey-text); }
-
-  /* ---------- drawer ---------- */
-  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .3); opacity: 0; pointer-events: none; transition: opacity .15s; }
-  .scrim.open { opacity: 1; pointer-events: auto; }
-  aside {
-    position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); background: var(--surface);
-    border-left: 1px solid var(--border); transform: translateX(100%); transition: transform .18s ease-out;
-    display: flex; flex-direction: column; z-index: 10;
-  }
-  aside.open { transform: none; }
-  aside .head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-  aside .head h2 { margin: 0; font-size: 16px; flex: 1; overflow-wrap: anywhere; }
-  aside form { flex: 1; overflow: auto; padding: 12px 16px; display: grid; gap: 10px; }
-  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
-  .field .row { display: flex; gap: 6px; align-items: flex-start; }
-  .field input, .field select, .field textarea {
-    width: 100%; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; padding: 7px 9px;
-  }
-  .field textarea { min-height: 70px; resize: vertical; }
-  .field input:disabled { background: var(--surface-2); color: var(--muted); }
-  .field input:focus, .field select:focus, .field textarea:focus, .controls input:focus { outline: 2px solid var(--honey); outline-offset: -1px; border-color: var(--honey); }
-  .field a.open { flex: none; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; text-decoration: none; color: var(--honey-text); background: var(--honey-soft); }
-  aside .actions { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-  aside .actions .spacer { flex: 1; }
-  .x { border: 0; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); padding: 2px 6px; }
-
-  /* ---------- toast / loading ---------- */
-  .toast {
-    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px); opacity: 0;
-    background: var(--text); color: var(--bg); padding: 9px 14px; border-radius: 8px; transition: all .2s; z-index: 20;
-    max-width: calc(100% - 32px);
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%); }
-  .toast.error { background: var(--danger); color: #fff; }
-  .loading { color: var(--muted); padding: 40px; text-align: center; }
-
-  @media (max-width: 720px) {
-    header { padding: 10px 16px; }
-    .controls { margin-left: 0; width: 100%; }
-    .controls input[type=search] { flex: 1 1 100%; width: auto; }
-    main { padding: 12px 16px; }
-    .col { flex-basis: 78vw; }
-  }
-</style>
-</head>
-<body>
-<header>
-  <div class="brand"><span class="dot"></span>Boecia Talent CRM</div>
-  <div class="tabs" role="tablist" id="tabs"></div>
-  <div class="controls">
-    <input type="search" id="search" placeholder="Search…" aria-label="Search">
-    <select id="owner" aria-label="Filter by owner"></select>
-    <div class="seg" role="group" aria-label="View">
-      <button id="view-board" aria-pressed="true">Board</button>
-      <button id="view-table" aria-pressed="false">Table</button>
-    </div>
-    <button class="btn" id="refresh" title="Refresh">↻</button>
-    <a class="btn" id="open-sheet" target="_blank" rel="noopener">Sheet ↗</a>
-    <button class="btn primary" id="add">+ Add</button>
-  </div>
-</header>
-
-<main id="main"><div class="loading">Loading…</div></main>
-
-<div class="scrim" id="scrim"></div>
-<aside id="drawer" aria-hidden="true">
-  <div class="head">
-    <h2 id="drawer-title"></h2>
-    <button class="x" id="drawer-close" aria-label="Close">×</button>
-  </div>
-  <form id="drawer-form" autocomplete="off"></form>
-  <div class="actions">
-    <button class="btn danger" id="delete" type="button">Delete</button>
-    <span class="spacer"></span>
-    <button class="btn" id="cancel" type="button">Cancel</button>
-    <button class="btn primary" id="save" type="button">Save</button>
-  </div>
-</aside>
-
-<div class="toast" id="toast"></div>
-
-<script>
 (function () {
   'use strict';
+
+  var auth = createAuth({ clientId: config.GOOGLE_CLIENT_ID });
+  var api = createSheetsClient({
+    spreadsheetId: config.SPREADSHEET_ID,
+    getToken: auth.getToken,
+    onUnauthorized: auth.invalidate
+  });
 
   var TABS = ['Candidates', 'Leads', 'Contact'];
 
@@ -244,15 +47,13 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  /* ---------------- server calls ---------------- */
+  /* ---------------- Google Sheets calls ---------------- */
 
   function call(fn) {
     var args = Array.prototype.slice.call(arguments, 1);
-    return new Promise(function (resolve, reject) {
-      var runner = google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(function (e) { reject(e && e.message ? e : new Error(String(e))); });
-      runner[fn].apply(runner, args);
+    return Promise.resolve().then(function () { return api[fn].apply(null, args); }).catch(function (e) {
+      if (e && e.code === 'auth') showReconnect();
+      throw e;
     });
   }
 
@@ -262,7 +63,7 @@
 
   function loadAll(showErrors) {
     return Promise.all(TABS.map(function (t) {
-      return load(t).catch(function (e) { if (showErrors) toast(t + ': ' + e.message, true); });
+      return load(t).catch(function (e) { if (showErrors && e.code !== 'auth') toast(t + ': ' + e.message, true); });
     })).then(render);
   }
 
@@ -658,7 +459,7 @@
 
   // Pick up new Tally submissions without a manual refresh.
   setInterval(function () {
-    if (document.hidden || state.drawer || dragId || state.busy) return;
+    if (document.hidden || state.drawer || dragId || state.busy || !auth.isSignedIn()) return;
     loadAll(false);
   }, 60000);
 
@@ -667,10 +468,63 @@
   $('view-board').setAttribute('aria-pressed', state.view === 'board');
   $('view-table').setAttribute('aria-pressed', state.view === 'table');
 
-  load(state.tab).then(render).catch(function (e) {
-    $('main').innerHTML = '<div class="loading">' + esc(e.message) + '</div>';
-  }).then(function () { return loadAll(false); });
+  /* ---------------- sign-in ---------------- */
+
+  function showSignin(message, canSwitch) {
+    document.body.classList.add('signed-out');
+    $('signin').hidden = false;
+    $('reconnect').hidden = true;
+    $('signin-error').textContent = message || '';
+    $('signin-error').hidden = !message;
+    $('switch-account').hidden = !canSwitch;
+  }
+
+  function showReconnect() {
+    if (!document.body.classList.contains('signed-out')) $('reconnect').hidden = false;
+  }
+
+  function start() {
+    document.body.classList.remove('signed-out');
+    $('signin').hidden = true;
+    $('reconnect').hidden = true;
+    $('account').title = auth.email() ? 'Signed in as ' + auth.email() : 'Sign out';
+    $('main').innerHTML = '<div class="loading">Loading…</div>';
+    return load(state.tab).then(render).then(function () { return loadAll(false); }).catch(function (e) {
+      if (['auth', 'forbidden', 'setup', 'not_found'].indexOf(e.code) !== -1) {
+        showSignin(e.message, e.code === 'forbidden');
+      } else {
+        $('main').innerHTML = '<div class="loading">' + esc(e.message) + '</div>';
+      }
+    });
+  }
+
+  function signIn() {
+    $('signin-btn').disabled = true;
+    $('signin-error').hidden = true;
+    $('switch-account').hidden = true;
+    // No await before auth.signIn(): the popup must open inside the click.
+    auth.signIn().then(start, function (e) { showSignin(e.message, false); })
+      .then(function () { $('signin-btn').disabled = false; });
+  }
+
+  $('signin-btn').addEventListener('click', signIn);
+  $('switch-account').addEventListener('click', function () { auth.signOut(); signIn(); });
+  $('reconnect-btn').addEventListener('click', function () {
+    auth.signIn().then(function () { $('reconnect').hidden = true; return loadAll(true); })
+      .catch(function (e) { toast(e.message, true); });
+  });
+  $('account').addEventListener('click', function () {
+    auth.signOut();
+    state.data = {};
+    closeDrawer();
+    showSignin('Signed out.', false);
+  });
+
+  if (!config.GOOGLE_CLIENT_ID || /^PASTE/.test(config.GOOGLE_CLIENT_ID)) {
+    showSignin('Setup is not finished: paste your Google client ID into config.js (README, step 1).', false);
+    $('signin-btn').disabled = true;
+  } else {
+    auth.preload();
+    showSignin('', false);
+  }
 })();
-</script>
-</body>
-</html>
